@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>SMILE-pi Typing Tutor</title>
+<script language="javascript" text="text/javascript" src="element.js"></script>
+<script language="javascript" text="text/javascript"><!--
+	var lessons=["asdf afdsa fads dsf sad fsadf", // 1
+	             "jkl kjl jlkk ljkj lkjlj kljkl", // 2
+	             "jald faj las jalk skald flask", // 3
+	             "qwer were qweer req ere qewre", // 4
+	             "swear dear feeds sqarf dwaqfa", // 5
+	             "swaller frakle larq jerk safe", // 6
+                 "flares walk salad leaf jewels", // 7
+	             "fg gf fgfg hj jh hjhj fgh jgh", // 8
+                 "shale flag waggle hare healer", // 9
+                 "tr rt treat hate the flat tag", // 10
+	             "great wealth as all the flaws", // 11
+                 "poiu uiop upoi oil pike opals", // 12
+                 "fight for its life glow whole", // 13
+                 "flower hope pours out of lore", // 14
+                 "you had thy joyous yesterdays", // 15
+                 "salary tighter justifies cagy", // 16
+                 "choose very exotic zoological", // 17
+                 "coy vex czars covet oxidizers", // 18
+                 "follow many frightening arrow", // 19
+                 "only genius simplify zambonis",  // 20
+	];
+	var NUMLESSONS=lessons.length;
+	var NOLESSON=-1;
+	var ilesson=NOLESSON,steptimeout,mistakes;
+	var keyboard,handleft,handright,entryfield,startstop,promptarea,promptletter,promptfollowup,lessonchoice;
+	var keyhalo,spacebarhalo;
+	var lastLesson,timeStart,msElapsed;
+	var msGetReady=1000;	// delay before first character is shown
+	var xkeyboard,ykeyboard;
+	function absx(elem) {
+		return elem.offsetLeft
+		      +elem.offsetParent.offsetLeft
+		      +elem.offsetParent.offsetParent.offsetLeft
+		      +elem.offsetParent.offsetParent.offsetParent.offsetLeft;
+	}
+	function absy(elem) {
+		return elem.offsetTop
+		      +elem.offsetParent.offsetTop
+		      +elem.offsetParent.offsetParent.offsetTop
+		      +elem.offsetParent.offsetParent.offsetParent.offsetTop;
+	}
+	function loadBody() {
+		silence();
+		keyboard=element('keyboard');
+		handleft=element('handleft');
+		handright=element('handright');
+		entryfield=element('entryfield');
+		promptarea=element('promptarea');
+		promptletter=element('promptletter');
+		promptfollowup=element('promptfollowup');
+		startstop=element('startstop');
+		lessonchoice=element('lessonchoice');
+		keyhalo=element('keyhalo');
+		spacebarhalo=element('spacebarhalo');
+		startstop.focus();
+		document.body.style.backgroundColor=body_backgroundColor;
+		xkeyboard=absx(keyboard);
+		ykeyboard=absy(keyboard);
+	}
+	var lastimg=null;
+	function puthalo(img,x,y) {
+		offhalo();
+		img.style.left=(absx(keyboard)+x+12).toString()+'px';
+		img.style.top=(absy(keyboard)+y-40).toString()+'px';
+		img.style.display='';
+		lastimg=img;
+	}
+	function offhalo() {
+		if (lastimg != null) {
+			lastimg.style.display='none';
+		}
+		lastimg=null;
+	}
+	var letterpos=[['qwertyuiop[]\\',64,96],["asdfghjkl;'",72,128],['zxcvbnm,./',88,160]],dx=32;
+	var fingerpos=['lp','lr','lm','li','li', 'ri','ri','rm','rr','rp','rp','rp','rp'];
+	var FINGERSLEFT=5;
+	function fingersrc(ifing) {
+		return 'hand'+fingerpos[ifing]+'.gif';
+	}
+	for (ifing=0 ; ifing < fingerpos.length ; ifing++) {
+		(new Image(167,222)).src=fingersrc(ifing);	// pre-cache hand images
+	}
+	function speak(what) {
+		if (parent != null && parent.playaudio != null) {
+			parent.playaudio(what+'.au');
+		}
+	}
+	function silence() {
+		if (parent != null && parent.stopaudio != null) {
+			parent.stopaudio();
+		}
+	}
+	function haloletter(chr) {
+		for (var i=0 ; i < letterpos.length ; i++) {
+			var idx;
+			if ((idx=letterpos[i][0].indexOf(chr)) >= 0) {
+				puthalo(keyhalo,letterpos[i][1]+idx*dx,letterpos[i][2]);
+				if (idx < FINGERSLEFT) {
+					handleft.src=fingersrc(idx);
+					handright.src='handr.gif';
+				}
+				else {
+					handleft.src='handl.gif';
+					handright.src=fingersrc(idx);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+	function halospacebar() {
+		puthalo(spacebarhalo,136,192);
+		handleft.src='handlt.gif';
+		handright.src='handr.gif';
+	}
+// --></script>
+<script language="javascript" text="text/javascript"><!--
+	function clickStartStop() {
+		if (ilesson == NOLESSON) {
+			if (0 <= lessonchoice.selectedIndex
+			      && lessonchoice.selectedIndex < lessons.length) {
+				startLesson(lessonchoice.selectedIndex);
+			}
+			else {
+				lessonchoice.focus();
+			}
+		}
+		else {
+			stopLesson(false);
+		}
+	}
+	function innertext(object, text) {
+		object.innerText = text;
+		object.textContent = text;
+	}
+	function startLesson(_ilesson) {
+		ilesson=_ilesson;
+		ichar=0;
+		startstop.value="STOP"
+		feedback('','');
+		innertext(promptarea,'Please type the letter ... ');
+		entryfield.value='';
+		mistakes=0;
+		steptimeout=setTimeout(step0,msGetReady);
+	}
+	function step0() {
+		timeStart=new Date();
+		step1();
+	}
+	function step1() {
+		var keywanted=lessons[ilesson].charAt(ichar);
+		if (keywanted == ' ') {
+			innertext(promptarea,'Please hit the ');
+			innertext(promptletter,' spacebar ');
+			promptletter.style.font=fontPromptSpacebar;
+			promptletter.style.border=borderPromptSpacebar;
+			halospacebar();
+			speak('space');
+		}
+		else {
+			innertext(promptarea,'Please type the letter ... ');
+			innertext(promptletter,keywanted);
+			promptletter.style.font=fontPromptLetter;
+			promptletter.style.border=borderPromptLetter;
+			haloletter(keywanted);
+			speak(keywanted);
+		}
+		entryfield.focus();
+	}
+// --></script>
+<script language="javascript" text="text/javascript"><!--
+	String.prototype.lastc=function() {
+		return this.substring(this.length-1);
+	}
+	function keychar(evt) {
+		return String.fromCharCode(evt.keyCode ? evt.keyCode : evt.which);
+	}
+	var isKeydown=false;
+	var isAutorepeat=false;
+	function entryKeyDown(evt) {
+		if (ilesson == NOLESSON) {
+			return false;
+		}
+		if (keychar(evt) == '\x1B') {	// <Esc> key aborts the lesson
+			stopLesson(false);
+			return false;
+		}
+		if (isKeydown) {
+			// if (keychar(evt) == '\x1B') // need to figure out if this is the shift key or not and then ignore isAutoRepeat if it is
+			isAutorepeat=true;			// young fingers are heavy
+			innertext(promptfollowup,"  Don't hold the key down.");
+		}
+		else {
+			isKeydown=true;
+		}
+		return !isAutorepeat;			// ignore auto-repeated key
+	}
+	function entryKeyUp(evt) {
+		isKeydown=false;
+		if (isAutorepeat) {
+			isAutorepeat=false;
+			innertext(promptfollowup,"");
+		}
+		return true;
+	}
+	function lessonFocus(evt) {
+		if (ilesson != NOLESSON) {
+			startstop.focus();
+			return false;
+		}
+		return true;
+	}
+	function entryBlur(evt) {
+		isKeydown=false;
+		isAutorepeat=false;
+		return true;
+	}
+	function feedback(text,clr) {
+		innertext(promptfeedback,text);
+		promptfeedback.style.color=clr;
+	}
+	function entryKeyPress(evt) {
+		if (ilesson == NOLESSON) {
+			return false;
+		}
+		if (keychar(evt) == lessons[ilesson].charAt(ichar)) {
+			ichar++;
+			if (ichar < lessons[ilesson].length) {
+				feedback('Right!','green');
+				step1();
+			}
+			else {
+				stopLesson(true);
+				feedback('Great!!  You finished.'
+					+'  Your score is ' + score()+'!'
+					+'  You made '+mistakes.toString()+' mistake'+(mistakes == 1 ? '' : 's')+'.',
+					'blue');
+			}
+			return true;
+		}
+		else {
+			feedback('Oops, not "'+keychar(evt)+'"!','red');
+			mistakes++;
+			step1();
+			return false;
+		}
+	}
+// --></script>
+<script language="javascript" text="text/javascript"><!--
+	function score() {
+		var keysPerMinute,mistakesPerMinute;
+		try {
+			keysPerMinute=(lessons[lastLesson].length*60000)/msElapsed;
+			mistakesPerMinute=(mistakes*60000)/msElapsed;
+		}
+		catch (e) {
+			return 0;
+		}
+		return Math.round(keysPerMinute-5*mistakesPerMinute);
+	}
+	function stopLesson(good) {
+		if (good) {
+			var timeStop=new Date();
+			msElapsed=timeStop.getTime()-timeStart.getTime();
+			lastLesson=ilesson;
+		}
+		else {
+			entryfield.value='';
+			startstop.focus();
+		}
+		startstop.value="START";
+		feedback('','');
+		innertext(promptarea,'');
+		innertext(promptletter,'');
+		promptletter.style.border=borderPromptLetter;
+		clearTimeout(steptimeout);
+		offhalo();
+		silence();
+		handright.src='handr.gif';
+		handleft.src='handl.gif';
+		ilesson=NOLESSON;
+	}
+// --></script>
+<script language="javascript" text="text/javascript"><!--
+	function posn(elem) {
+		return (elem.offsetLeft-element('keyboard').offsetLeft).toString()+','
+		      +(elem.offsetTop-element('keyboard').offsetTop).toString();
+	}
+	function showpos() {
+		innertext(element('lpos'),'('+posn(element('handleft')) +')');
+		innertext(element('rpos'),'('+posn(element('handright'))+')');
+	}
+	function doclick(img) {
+		//alert('Image ' + img.id + ' is now at ' + img.offsetLeft + ',' + img.offsetTop);
+		//alert('image is now at ' + img.style.top + ',' + img.style.left);
+		img.style.top=(img.offsetTop-10).toString() + 'px';
+		img.style.left=(img.offsetLeft-10).toString() + 'px';
+		showpos();
+		return true;
+	}
+// --></script>
+<script language="javascript" text="text/javascript"><!--
+	var body_backgroundColor='rgb(240,240,240)';
+	var fontPromptLetter='bold 50px monospace';
+	var fontPromptSpacebar='italic 40px serif';
+	var borderPromptLetter=body_backgroundColor+' solid 1px';
+	var borderPromptSpacebar='black solid 1px';
+// --></script>
+<style>
+	.tcenter { text-align:center; white-space:nowrap; }
+	.tleft { text-align:left; white-space:nowrap; }
+	#promptfeedback { font:20px bold sans-serif; }
+	#promptarea { font:14px bold sans-serif; }
+	#promptfollowup { font:italic 15px serif; }
+	#promptall { font:bold 20px bold sans-serif; line-height: 30px; color:rgb(240,240,240); }
+	#entryfield { font:bold 35px monospace; }
+</style>
+<link href="css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+  <body onload="loadBody();">
+
+    <!-- Static navbar -->
+    <div class="navbar navbar-default navbar-static-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">SMILE-pi Typing Tutor</a>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="container">
+<table border="0" cellspacing="0" cellpadding="0">
+	<tr><td class="tleft">
+		<h1>Touch-Typing Tutor</h1>
+	</td></tr>
+	<tr><td class="tleft">
+		<select id="lessonchoice" onfocus="return lessonFocus(event);" size="1">
+			<option value="1"
+			         selected>Lesson 1 (asdf)</option>
+			<option value="2">Lesson 2 (jkl)</option>
+			<option value="3">Lesson 3</option>
+			<option value="4">Lesson 4 (qwer)</option>
+			<option value="5">Lesson 5</option>
+			<option value="6">Lesson 6</option>
+			<option value="7">Lesson 7</option>
+			<option value="8">Lesson 8 (gh)</option>
+			<option value="9">Lesson 9</option>
+			<option value="10">Lesson 10 (t)</option>
+			<option value="11">Lesson 11</option>
+			<option value="12">Lesson 12 (uiop)</option>
+			<option value="13">Lesson 13</option>
+			<option value="14">Lesson 14</option>
+			<option value="15">Lesson 15 (y)</option>
+			<option value="16">Lesson 16</option>
+			<option value="17">Lesson 17 (zxcv)</option>
+			<option value="18">Lesson 18</option>
+			<option value="19">Lesson 19 (bnm)</option>
+			<option value="20">Lesson 20</option>
+		</select>
+		<input id="startstop" name="startstop" value="START"
+			onclick="clickStartStop();" type="button" >
+		<span id="promptfeedback">&nbsp;</span>
+		<span id="promptarea">&nbsp;</span>
+		<span id="promptletter">&nbsp;</span>
+		<span id="promptfollowup">&nbsp;</span>
+		<span id="promptall">js</span>
+		<IMG height=50 src="pixel.gif" width=1 ><br
+      >
+		<IMG height=20 src="pixel.gif" width=1 >
+	</td></tr>
+	<tr><td class="tcenter">
+		<input id="entryfield" name="entryfield" size="30" maxlength="30"
+			onkeydown ="return entryKeyDown(event);"
+			onkeypress="return entryKeyPress(event);"
+			onkeyup   ="return entryKeyUp(event);"
+			onblur    ="return entryBlur(event);"
+			>
+	</td></tr>
+	<tr><td>
+		<img id=keyboard src="keyboard.png" name=keyboard  style="z-index: 0" width="769" height="241" /><br>
+	</td></tr>
+	<tr>
+		<td class="tcenter">
+			<img id=handleft onclick=doclick(this); src="handl.gif" name
+				=handleft  xstyle="position: absolute" width="167" height="222" />
+			<img id=handright onclick=doclick(this); src="handr.gif" name
+				=handright  xstyle="position: absolute" width="167" height="222" />
+      <P></P>
+		</td>
+	</tr>
+</table>
+<img id=keyhalo style="display: none; position: absolute; z-index:1" src="keyhalo.gif" width="64" height="64" />
+<img id=spacebarhalo style="display: none; position: absolute; z-index:1" src="spacebarhalo.gif" width="232" height="64" />
+</body>
+</html>
